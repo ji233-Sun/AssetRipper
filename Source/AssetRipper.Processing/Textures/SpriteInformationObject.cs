@@ -75,10 +75,13 @@ public sealed class SpriteInformationObject : AssetGroup, INamed
 			}
 			else if (atlas is not null && atlas != mappedAtlas)
 			{
-				string spriteBundle = sprite.Collection?.AssetInfo.NameString ?? "Unknown";
-				string atlasBundle = atlas.Collection?.AssetInfo.NameString ?? "Unknown";
-				string mappedAtlasBundle = mappedAtlas.Collection?.AssetInfo.NameString ?? "Unknown";
-				Console.WriteLine($"WARNING: {nameof(atlas)} is not the same as {nameof(mappedAtlas)}. Sprite: {sprite.Name} (bundle: {spriteBundle}), Atlas: {atlas.Name} (bundle: {atlasBundle}), MappedAtlas: {mappedAtlas.Name} (bundle: {mappedAtlasBundle})");
+				string spriteCollection = sprite.Collection?.Name ?? "Unknown";
+				string spriteBundle = sprite.Collection?.Bundle?.Name ?? "Unknown";
+				string atlasCollection = atlas.Collection?.Name ?? "Unknown";
+				string atlasBundle = atlas.Collection?.Bundle?.Name ?? "Unknown";
+				string mappedAtlasCollection = mappedAtlas.Collection?.Name ?? "Unknown";
+				string mappedAtlasBundle = mappedAtlas.Collection?.Bundle?.Name ?? "Unknown";
+				Console.WriteLine($"WARNING: {nameof(atlas)} is not the same as {nameof(mappedAtlas)}. Sprite: {sprite.Name} (collection: {spriteCollection}, bundle: {spriteBundle}), Atlas: {atlas.Name} (collection: {atlasCollection}, bundle: {atlasBundle}), MappedAtlas: {mappedAtlas.Name} (collection: {mappedAtlasCollection}, bundle: {mappedAtlasBundle})");
 				// Keep the existing mappedAtlas instead of overwriting
 			}
 		}
