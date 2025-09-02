@@ -99,9 +99,9 @@ public class ScriptExporter : IAssetExporter
 		}
 	}
 
-	public AssetType ToExportType(IUnityObjectBase asset) => AssetType.Meta;
+	AssetType IAssetExporter.ToExportType(IUnityObjectBase asset) => AssetType.Meta;
 
-	public bool ToUnknownExportType(Type type, out AssetType assetType)
+	bool IAssetExporter.ToUnknownExportType(Type type, out AssetType assetType)
 	{
 		assetType = AssetType.Meta;
 		return true;

@@ -1,5 +1,6 @@
 using AsmResolver.DotNet;
 using AssetRipper.Import.Structure.Platforms;
+using AssetRipper.IO.Files;
 using AssetRipper.SerializationLogic;
 
 namespace AssetRipper.Import.Structure.Assembly.Managers;
@@ -17,6 +18,7 @@ public interface IAssemblyManager : IDisposable
 	bool IsValid(ScriptIdentifier scriptID);
 	bool TryGetSerializableType(
 		ScriptIdentifier scriptID,
+		UnityVersion version,
 		[NotNullWhen(true)] out SerializableType? scriptType,
 		[NotNullWhen(false)] out string? failureReason);
 	TypeDefinition GetTypeDefinition(ScriptIdentifier scriptID);
@@ -33,12 +35,10 @@ public interface IAssemblyManager : IDisposable
 }
 public static class AssemblyManagerExtensions
 {
-	public static void SaveAssembly(this IAssemblyManager manager, AssemblyDefinition assembly, string path)
+	public static void SaveAssembly(this IAssemblyManager manager, AssemblyDefinition assembly, string path, FileSystem fileSystem)
 	{
-		Stream readStream = manager.GetStreamForAssembly(assembly);
-		using FileStream writeStream = File.Create(path);
-		readStream.Position = 0;
-		readStream.CopyTo(writeStream);
+		using Stream writeStream = fileSystem.File.Create(path);
+		manager.SaveAssembly(assembly, writeStream);
 	}
 	public static void SaveAssembly(this IAssemblyManager manager, AssemblyDefinition assembly, Stream writeStream)
 	{

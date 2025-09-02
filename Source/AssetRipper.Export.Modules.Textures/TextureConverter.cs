@@ -50,11 +50,17 @@ public static class TextureConverter
 			return false;
 		}
 
+		if (!TryGetTextureFormat((GraphicsFormat)texture.Format, out TextureFormat format))
+		{
+			bitmap = DirectBitmap.Empty;
+			return false;
+		}
+
 		if (!TryConvertToBitmap(
-			texture.GetTextureFormat(),
+			format,
 			texture.Width,
 			texture.Height,
-			texture.ImageCount,
+			texture.Depth,
 			texture.GetCompleteImageSize(),
 			texture.Collection.Version,
 			buffer,
@@ -83,7 +89,7 @@ public static class TextureConverter
 			return false;
 		}
 
-		if (!TryGetTextureFormat(texture, out TextureFormat format))
+		if (!TryGetTextureFormat((GraphicsFormat)texture.Format, out TextureFormat format))
 		{
 			bitmap = DirectBitmap.Empty;
 			return false;
@@ -105,26 +111,6 @@ public static class TextureConverter
 		bitmap.FlipY();
 
 		return true;
-
-		static bool TryGetTextureFormat(ITexture2DArray texture, out TextureFormat format)
-		{
-			try
-			{
-				format = ((GraphicsFormat)texture.Format).ToTextureFormat();
-				return true;
-			}
-			catch (NotSupportedException)
-			{
-				format = default;
-				return false;
-			}
-			catch (ArgumentOutOfRangeException)
-			{
-				Logger.Log(LogType.Error, LogCategory.Export, $"Unknown GraphicsFormat '{texture.Format}'");
-				format = default;
-				return false;
-			}
-		}
 	}
 
 	public static bool TryConvertToBitmap(ICubemapArray texture, out DirectBitmap bitmap)
@@ -136,8 +122,14 @@ public static class TextureConverter
 			return false;
 		}
 
+		if (!TryGetTextureFormat((GraphicsFormat)texture.Format, out TextureFormat format))
+		{
+			bitmap = DirectBitmap.Empty;
+			return false;
+		}
+
 		if (!TryConvertToBitmap(
-			texture.FormatE,
+			format,
 			texture.Width,
 			texture.GetHeight(),
 			texture.GetDepth(),
@@ -546,9 +538,61 @@ public static class TextureConverter
 				RgbConverter.Convert<ColorRGB9e5, double, TColor, TChannelValue>(inputSpan, width, height, outputSpan);
 				return true;
 
+			case TextureFormat.R8_SIGNED:
+				RgbConverter.Convert<ColorR<sbyte>, sbyte, TColor, TChannelValue>(inputSpan, width, height, outputSpan);
+				return true;
+
+			case TextureFormat.RG16_SIGNED:
+				RgbConverter.Convert<ColorRG<sbyte>, sbyte, TColor, TChannelValue>(inputSpan, width, height, outputSpan);
+				return true;
+
+			case TextureFormat.RGB24_SIGNED:
+				RgbConverter.Convert<ColorRGB<sbyte>, sbyte, TColor, TChannelValue>(inputSpan, width, height, outputSpan);
+				return true;
+
+			case TextureFormat.RGBA32_SIGNED:
+				RgbConverter.Convert<ColorRGBA<sbyte>, sbyte, TColor, TChannelValue>(inputSpan, width, height, outputSpan);
+				return true;
+
+			case TextureFormat.R16_SIGNED:
+				RgbConverter.Convert<ColorR<short>, short, TColor, TChannelValue>(inputSpan, width, height, outputSpan);
+				return true;
+
+			case TextureFormat.RG32_SIGNED:
+				RgbConverter.Convert<ColorRG<short>, short, TColor, TChannelValue>(inputSpan, width, height, outputSpan);
+				return true;
+
+			case TextureFormat.RGB48_SIGNED:
+				RgbConverter.Convert<ColorRGB<short>, short, TColor, TChannelValue>(inputSpan, width, height, outputSpan);
+				return true;
+
+			case TextureFormat.RGBA64_SIGNED:
+				RgbConverter.Convert<ColorRGBA<short>, short, TColor, TChannelValue>(inputSpan, width, height, outputSpan);
+				return true;
+
 			default:
 				Logger.Log(LogType.Error, LogCategory.Export, $"Unsupported texture format '{textureFormat}'");
 				return false;
+		}
+	}
+
+	private static bool TryGetTextureFormat(GraphicsFormat graphicsFormat, out TextureFormat format)
+	{
+		try
+		{
+			format = graphicsFormat.ToTextureFormat();
+			return true;
+		}
+		catch (NotSupportedException)
+		{
+			format = default;
+			return false;
+		}
+		catch (ArgumentOutOfRangeException)
+		{
+			Logger.Log(LogType.Error, LogCategory.Export, $"Unknown GraphicsFormat '{(int)graphicsFormat}'");
+			format = default;
+			return false;
 		}
 	}
 

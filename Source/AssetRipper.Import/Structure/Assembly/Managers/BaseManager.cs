@@ -1,5 +1,7 @@
 ﻿using AsmResolver.DotNet;
+using AsmResolver.DotNet.Builder;
 using AsmResolver.DotNet.Signatures;
+using AsmResolver.PE.Builder;
 using AssetRipper.Import.Structure.Platforms;
 using AssetRipper.IO.Files;
 using AssetRipper.SerializationLogic;
@@ -14,7 +16,7 @@ public partial class BaseManager : IAssemblyManager
 	protected readonly Dictionary<string, AssemblyDefinition?> m_assemblies = new();
 	protected readonly Dictionary<AssemblyDefinition, Stream> m_assemblyStreams = new(SignatureComparer.Default);
 	protected readonly Dictionary<string, bool> m_validTypes = new();
-	private readonly Dictionary<ITypeDefOrRef, SerializableType> monoTypeCache = new(SignatureComparer.Default);
+	private readonly Dictionary<FieldSerializer, Dictionary<ITypeDefOrRef, SerializableType>> monoTypeCache = new();
 
 	private event Action<string> m_requestAssemblyCallback;
 	private readonly Dictionary<string, SerializableType> m_serializableTypes = new();
@@ -72,7 +74,7 @@ public partial class BaseManager : IAssemblyManager
 		else
 		{
 			MemoryStream memoryStream = new();
-			assembly.WriteManifest(memoryStream);
+			assembly.ManifestModule?.ToPEImage(new ManagedPEImageBuilder(), false).ToPEFile(new ManagedPEFileBuilder()).Write(memoryStream);
 			m_assemblyStreams.Add(assembly, memoryStream);
 			return memoryStream;
 		}
@@ -185,6 +187,7 @@ public partial class BaseManager : IAssemblyManager
 
 	public bool TryGetSerializableType(
 		ScriptIdentifier scriptID,
+		UnityVersion version,
 		[NotNullWhen(true)] out SerializableType? scriptType,
 		[NotNullWhen(false)] out string? failureReason)
 	{
@@ -200,18 +203,27 @@ public partial class BaseManager : IAssemblyManager
 			failureReason = $"Can't find type: {scriptID.UniqueName}";
 			return false;
 		}
-		else if (monoTypeCache.TryGetValue(type, out SerializableType? monoType)
-			|| new FieldSerializer(new UnityVersion(6000)).TryCreateSerializableType(type, monoTypeCache, out monoType, out failureReason))
-		{
-			// Todo: Use the actual Unity version when constructing the FieldSerializer
-			scriptType = monoType;
-			failureReason = null;
-			return true;
-		}
 		else
 		{
-			scriptType = null;
-			return false;
+			FieldSerializer fieldSerializer = new(version);
+			if (!monoTypeCache.TryGetValue(fieldSerializer, out Dictionary<ITypeDefOrRef, SerializableType>? typeCache))
+			{
+				typeCache = new(SignatureComparer.Default);
+				monoTypeCache[fieldSerializer] = typeCache;
+			}
+
+			if (typeCache.TryGetValue(type, out SerializableType? monoType)
+				|| fieldSerializer.TryCreateSerializableType(type, typeCache, out monoType, out failureReason))
+			{
+				scriptType = monoType;
+				failureReason = null;
+				return true;
+			}
+			else
+			{
+				scriptType = null;
+				return false;
+			}
 		}
 	}
 

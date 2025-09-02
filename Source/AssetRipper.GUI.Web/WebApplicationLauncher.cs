@@ -9,6 +9,7 @@ using AssetRipper.GUI.Web.Pages.Scenes;
 using AssetRipper.GUI.Web.Pages.Settings;
 using AssetRipper.GUI.Web.Paths;
 using AssetRipper.Import.Logging;
+using AssetRipper.Import.Utils;
 using AssetRipper.Web.Extensions;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -20,7 +21,6 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
-using Photino.NET;
 using SwaggerThemes;
 using System.Diagnostics;
 
@@ -28,8 +28,6 @@ namespace AssetRipper.GUI.Web;
 
 public static class WebApplicationLauncher
 {
-	public static PhotinoWindow? PhotinoWindow { get; private set; }
-
 	internal static class Defaults
 	{
 		public const int Port = 0;
@@ -75,7 +73,12 @@ public static class WebApplicationLauncher
 
 		if (log)
 		{
-			Logger.Add(string.IsNullOrEmpty(logPath) ? new FileLogger() : new FileLogger(logPath));
+			if (string.IsNullOrEmpty(logPath))
+			{
+				logPath = ExecutingDirectory.Combine($"AssetRipper_{DateTime.Now:yyyyMMdd_HHmmss}.log");
+				RotateLogs(logPath);
+			}
+			Logger.Add(new FileLogger(logPath));
 		}
 		Logger.LogSystemInformation("AssetRipper");
 		Logger.Add(new ConsoleLogger());
@@ -121,20 +124,14 @@ public static class WebApplicationLauncher
 #endif
 		if (launchBrowser)
 		{
-			app.Lifetime.ApplicationStarted.Register((Action)(() =>
+			app.Lifetime.ApplicationStarted.Register(() =>
 			{
-				string address = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()?.Addresses.FirstOrDefault()
-					?? throw new InvalidOperationException("Failed to get server address.");
-
-				WebApplicationLauncher.PhotinoWindow = new PhotinoWindow
+				string? address = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()?.Addresses.FirstOrDefault();
+				if (address is not null)
 				{
-					LogVerbosity = 0,
-					Title = "AssetRipper",
-					Centered = true,
-				};
-
-				PhotinoWindow.Load(address);
-			}));
+					OpenUrl(address);
+				}
+			});
 		}
 
 		app.MapOpenApi(DocumentationPaths.OpenApi);
@@ -322,22 +319,7 @@ public static class WebApplicationLauncher
 			.Produces<bool>()
 			.WithQueryStringParameter("Path", required: true);
 
-		if (launchBrowser)
-		{
-			CancellationTokenSource cts = new();
-			Task _aspTask = app.RunAsync(cts.Token);
-			while (PhotinoWindow is null && !_aspTask.IsCompleted)
-			{
-				Thread.Sleep(100);
-			}
-			PhotinoWindow?.WaitForClose();
-			cts.Cancel();
-			_aspTask.Wait();
-		}
-		else
-		{
-			app.Run();
-		}
+		app.Run();
 	}
 
 	private static ILoggingBuilder ConfigureLoggingLevel(this ILoggingBuilder builder)
@@ -382,6 +364,33 @@ public static class WebApplicationLauncher
 		catch (Exception ex)
 		{
 			Logger.Error($"Failed to launch web browser for: {url}", ex);
+		}
+	}
+
+	private static void RotateLogs(string path)
+	{
+		const int MaxLogFiles = 5;
+		string? directory = Path.GetDirectoryName(path);
+		if (directory is null)
+		{
+			return;
+		}
+
+		FileInfo[] logFiles = new DirectoryInfo(directory)
+			.GetFiles("AssetRipper_*.log")
+			.OrderBy(f => f.Name)
+			.ToArray();
+
+		for (int i = 0; i <= logFiles.Length - MaxLogFiles; i++)
+		{
+			try
+			{
+				logFiles[i].Delete();
+			}
+			catch (IOException)
+			{
+				// Could not delete log file, ignore
+			}
 		}
 	}
 }
