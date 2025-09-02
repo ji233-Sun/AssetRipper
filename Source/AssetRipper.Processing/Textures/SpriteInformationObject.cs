@@ -73,6 +73,14 @@ public sealed class SpriteInformationObject : AssetGroup, INamed
 			{
 				dictionary[sprite] = atlas;
 			}
+			else if (atlas is not null && atlas != mappedAtlas)
+			{
+				string spriteBundle = sprite.Collection?.AssetInfo.NameString ?? "Unknown";
+				string atlasBundle = atlas.Collection?.AssetInfo.NameString ?? "Unknown";
+				string mappedAtlasBundle = mappedAtlas.Collection?.AssetInfo.NameString ?? "Unknown";
+				Console.WriteLine($"WARNING: {nameof(atlas)} is not the same as {nameof(mappedAtlas)}. Sprite: {sprite.Name} (bundle: {spriteBundle}), Atlas: {atlas.Name} (bundle: {atlasBundle}), MappedAtlas: {mappedAtlas.Name} (bundle: {mappedAtlasBundle})");
+				// Keep the existing mappedAtlas instead of overwriting
+			}
 		}
 		else
 		{
